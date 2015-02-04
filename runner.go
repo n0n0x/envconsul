@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"reflect"
 	"regexp"
 	"strings"
@@ -96,6 +97,19 @@ func (r *Runner) Wait() int {
 // Run executes and manages the child process with the correct environment. The
 // current enviornment is also copied into the child process environment.
 func (r *Runner) Run() error {
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
+	go func() {
+		s := <-sigc
+		fmt.Println(s)
+		r.restartProcess()
+	}()
+
 	env := make(map[string]string)
 	for _, pair := range r.data {
 		key := pair.Key
